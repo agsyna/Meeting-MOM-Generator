@@ -80,7 +80,7 @@ class _RecorderPageState extends State<RecorderPage> {
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://192.168.100.102:5000/diarize'),
+      Uri.parse('http://192.168.31.176:5000/diarize'),
     );
 
     request.files.add(await http.MultipartFile.fromPath('audio', audioPath!));
