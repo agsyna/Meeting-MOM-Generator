@@ -1,13 +1,196 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 
-class ShowText extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:meeting_gist/secrets.dart';
+
+class ShowText extends StatefulWidget {
   final List<Map<String, dynamic>> responseSegments;
 
   const ShowText(this.responseSegments, {Key? key}) : super(key: key);
 
   @override
+  State<ShowText> createState() => _ShowTextState();
+}
+
+class _ShowTextState extends State<ShowText> {
+  String summary = '';
+  bool scanning = false;
+
+  final apiUrl =
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$API_KEY";
+
+  final headers = {
+    'Content-Type': 'application/json',
+  };
+
+  Future<void> getData(String mytext, String howtosummarize) async {
+    setState(() {
+      scanning = true;
+      summary = '';
+    });
+
+    try {
+      var data = {
+        "contents":[
+          {
+            "parts":[
+              {
+                'text':"$howtosummarize - $mytext"
+              }
+            ]
+          }
+        ]
+      };
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: headers,
+        body: jsonEncode(data)
+      );
+
+      if(response.statusCode == 200) {
+        var result = jsonDecode(response.body);
+        summary = result['candidates'][0]['content']['parts'][0]['text'];
+      } else {
+        summary = 'Error: Failed to generate summary.';
+      }
+
+    } catch (e) {
+      summary = 'Error: Failed to generate summary.';
+      print('Error: $e');
+    }
+
+    setState(() {
+      scanning = false;
+    });
+    
+    _showSummaryDialog();
+  }
+
+  void _showSummaryDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      "Meeting Summary",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1D29),
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: summary));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Summary copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.copy, size: 12,),
+                      tooltip: 'Copy to clipboard',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      summary.isNotEmpty ? summary : 'No summary available',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: Color(0xFF1A1D29),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Close'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: summary));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Summary copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copy'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF667EEA),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Remove the loading dialog method - not needed
+
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: scanning ? null : () {
+          String combinedText =
+              widget.responseSegments.map((e) => e['text']).join(' ');
+          getData(combinedText, "Summarize the meeting transcript");
+        },
+        label: Text(scanning ? "Generating..." : "Summarize Text"),
+        icon: scanning 
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(Icons.summarize_outlined),
+      ),
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Text(
@@ -38,7 +221,7 @@ class ShowText extends StatelessWidget {
           ),
         ),
       ),
-      body: responseSegments.isEmpty
+      body: widget.responseSegments.isEmpty
           ? _buildEmptyState()
           : _buildTranscriptContent(context),
     );
@@ -110,18 +293,16 @@ class ShowText extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
-              child: _buildHeader(),
-            ),
+            SliverToBoxAdapter(child: _buildHeader()),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final segment = responseSegments[index];
+                    final segment = widget.responseSegments[index];
                     return _buildTranscriptSegment(segment, index);
                   },
-                  childCount: responseSegments.length,
+                  childCount: widget.responseSegments.length,
                 ),
               ),
             ),
@@ -152,10 +333,10 @@ class ShowText extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 colors: [
-                  const Color(0xFF667EEA),
-                  const Color(0xFF764BA2),
+                  Color(0xFF667EEA),
+                  Color(0xFF764BA2),
                 ],
               ),
               borderRadius: BorderRadius.circular(25),
@@ -168,16 +349,11 @@ class ShowText extends StatelessWidget {
               ],
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.record_voice_over,
-                  size: 18,
-                  color: Colors.white,
-                ),
+                const Icon(Icons.record_voice_over, size: 18, color: Colors.white),
                 const SizedBox(width: 8),
                 Text(
-                  '${responseSegments.length} segments',
+                  '${widget.responseSegments.length} segments',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -195,13 +371,8 @@ class ShowText extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.schedule,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
+                Icon(Icons.schedule, size: 16, color: Colors.grey.shade600),
                 const SizedBox(width: 4),
                 Text(
                   _getTotalDuration(),
@@ -241,8 +412,6 @@ class ShowText extends StatelessWidget {
                   speakerColor,
                   speakerColor.withOpacity(0.8),
                 ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
@@ -265,12 +434,10 @@ class ShowText extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          // Enhanced content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Speaker name and timestamp row
                 Row(
                   children: [
                     Text(
@@ -305,7 +472,6 @@ class ShowText extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Enhanced text content
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -336,16 +502,15 @@ class ShowText extends StatelessWidget {
 
   Color _getSpeakerColor(String speaker) {
     final colors = [
-      const Color(0xFF667EEA), // Blue
-      const Color(0xFF48BB78), // Green
-      const Color(0xFF9F7AEA), // Purple
-      const Color(0xFFF56565), // Red
-      const Color(0xFF38B2AC), // Teal
-      const Color(0xFFED8936), // Orange
-      const Color(0xFFEC4899), // Pink
-      const Color(0xFF4299E1), // Light Blue
+      const Color(0xFF667EEA),
+      const Color(0xFF48BB78),
+      const Color(0xFF9F7AEA),
+      const Color(0xFFF56565),
+      const Color(0xFF38B2AC),
+      const Color(0xFFED8936),
+      const Color(0xFFEC4899),
+      const Color(0xFF4299E1),
     ];
-    
     final hash = speaker.hashCode;
     return colors[hash.abs() % colors.length];
   }
@@ -354,23 +519,17 @@ class ShowText extends StatelessWidget {
     final seconds = double.tryParse(timeStr) ?? 0.0;
     final minutes = (seconds / 60).floor();
     final remainingSeconds = (seconds % 60).floor();
-    
-    if (minutes > 0) {
-      return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
-    } else {
-      return '${remainingSeconds}s';
-    }
+    return minutes > 0
+        ? '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}'
+        : '${remainingSeconds}s';
   }
 
   String _getTotalDuration() {
-    if (responseSegments.isEmpty) return '0:00';
-    
-    final lastSegment = responseSegments.last;
-    final totalSeconds = lastSegment['end']?.toDouble() ?? 0.0;
-    
+    if (widget.responseSegments.isEmpty) return '0:00';
+    final last = widget.responseSegments.last;
+    final totalSeconds = last['end']?.toDouble() ?? 0.0;
     final minutes = (totalSeconds / 60).floor();
     final seconds = (totalSeconds % 60).floor();
-    
     return '${minutes}:${seconds.toString().padLeft(2, '0')}';
   }
 }

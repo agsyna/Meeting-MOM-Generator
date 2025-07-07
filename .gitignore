@@ -64,6 +64,8 @@
 version
 analysis_benchmark.json
 
+
+
 # packages file containing multi-root paths
 .packages.generated
 
@@ -165,3 +167,5 @@ app.*.symbols
 .python-version
 .gclient_previous_custom_vars
 .gclient_previous_sync_commits
+
+lib/secrets.dart
