@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:meeting_gist/screens/custom_circular_progress_indicator.dart';
 import 'package:meeting_gist/widgets/recording_button.dart';
 import 'package:meeting_gist/widgets/recording_widget.dart';
 import 'package:meeting_gist/screens/show_text.dart';
@@ -146,8 +147,8 @@ class _RecorderPageState extends State<RecorderPage> {
     final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
       body:  isLoading?
-          const Center(
-            child: CircularProgressIndicator(),
+          Center(
+            child: CustomCircularProgressIndicator(),
           ):
           Container(
             height: screenHeight,
