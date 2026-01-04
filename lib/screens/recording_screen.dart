@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:meeting_gist/widgets/custom_circular_progress_indicator.dart';
-import 'package:meeting_gist/widgets/recording_button.dart';
 import 'package:meeting_gist/widgets/recording_widget.dart';
 import 'package:meeting_gist/screens/show_text.dart';
 import 'package:meeting_gist/widgets/snackbar.dart';
@@ -28,8 +27,6 @@ class _RecorderPageState extends State<RecorderPage> {
   late final Ticker _ticker;
 
   static const int _maxLoadingSeconds = 30;
-  static const double _progressStep = 1.0 / _maxLoadingSeconds / 10.0; // update every 100ms
-  Duration _lastTick = Duration.zero;
 
    @override
   void initState() {
@@ -100,7 +97,7 @@ class _RecorderPageState extends State<RecorderPage> {
       if (audioPath == null) return;
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.31.176:5000/diarize'),
+        Uri.parse('http://10.5.13.151:5000/diarize'),
       );
       request.files.add(await http.MultipartFile.fromPath('audio', audioPath!));
       var response = await request.send();
@@ -162,41 +159,182 @@ class _RecorderPageState extends State<RecorderPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
     final showPleaseWait = isLoading && (_progress >= 1.0);
+    
     return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        title: const Text(
+          'Recording',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: isLoading
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CustomCircularProgressIndicator(progress: _progress.clamp(0.0, 1.0)),
-                  if (showPleaseWait) ...[
-                    const SizedBox(height: 24),
-                    const Text('Please wait...', style: TextStyle(fontSize: 18)),
-                  ],
-                ],
-              ),
-            )
-          : Container(
-              height: screenHeight,
-              width: screenWidth,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  if (isRecording) const RecordingWidget(),
-                  const SizedBox(height: 16),
-                  RecordingButton(
-                    isRecording: isRecording,
-                    onPressed: () => _record(),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(onPressed: _stopRecording, child: Text('Meeting Completed')),
-                ],
+          ? _buildLoadingUI(showPleaseWait)
+          : _buildRecordingUI(),
+    );
+  }
+
+  Widget _buildLoadingUI(bool showPleaseWait) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CustomCircularProgressIndicator(progress: _progress.clamp(0.0, 1.0)),
+          if (showPleaseWait) ...[
+            const SizedBox(height: 32),
+            const Text(
+              'Processing your meeting',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
               ),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'Please wait...',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecordingUI() {
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              const SizedBox(height: 60),
+              
+              // Large Icon
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7785FF).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.mic_rounded,
+                  size: 60,
+                  color: Color(0xFF7785FF),
+                ),
+              ),
+              
+              const SizedBox(height: 32),
+              
+              // Status Text
+              Text(
+                isRecording ? 'Recording in progress' : 'Ready to record',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              const SizedBox(height: 12),
+              
+              Text(
+                isRecording 
+                  ? 'Your meeting is being recorded'
+                  : 'Start recording your meeting',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              const SizedBox(height: 60),
+              
+              // Recording Widget
+              if (isRecording) ...[
+                const RecordingWidget(),
+                const SizedBox(height: 40),
+              ],
+              
+              // Buttons
+              Column(
+                children: [
+                  // Primary Button - Record/Stop
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: FilledButton(
+                      onPressed: () => _record(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: isRecording 
+                          ? Colors.red 
+                          : const Color(0xFF7785FF),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        isRecording ? 'Stop Recording' : 'Start Recording',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // Secondary Button - Complete
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: _stopRecording,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(
+                          color: Color(0xFF7785FF),
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Meeting Completed',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF7785FF),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),           
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meeting_gist/screens/recording_screen.dart';
 import 'package:meeting_gist/screens/live_transcription_screen.dart';
+import 'package:meeting_gist/screens/offline_diarization_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   @override
@@ -74,18 +75,22 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               position: _slideAnimation,
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildAppLogo(),
-                      const SizedBox(height: 32),
-
-                      _buildTitleSection(),
-                      const SizedBox(height: 60),
-
-                      _buildButtonsSection(),
-                    ],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 40.0,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 500),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeader(),
+                        const SizedBox(height: 56),
+                        _buildFeatureGrid(),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -96,46 +101,47 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildAppLogo() {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        shape: BoxShape.circle,
-
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: const Icon(Icons.mic_none_rounded, size: 60, color: Colors.white),
-    );
-  }
-
-  Widget _buildTitleSection() {
+  Widget _buildHeader() {
     return Column(
       children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.mic_none_rounded,
+            size: 40,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 24),
         const Text(
-          'Meeting Gist',
+          'MeetScribe',
           style: TextStyle(
             fontSize: 36,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
             color: Colors.white,
-            letterSpacing: 1.2,
+            letterSpacing: 0.5,
           ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
         Text(
-          'Transform your meetings into actionable insights',
+          'LISTEN. IDENTIFY. SUMMARIZE.',
           style: TextStyle(
             fontSize: 16,
-            color: Colors.white.withValues(alpha: 0.9),
-            fontWeight: FontWeight.w300,
+            color: Colors.white.withOpacity(0.9),
+            fontWeight: FontWeight.w400,
           ),
           textAlign: TextAlign.center,
         ),
@@ -143,90 +149,141 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildButtonsSection() {
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(maxWidth: 400),
-      child: Column(
-        children: [
-          // Speech to Text Button
-          _buildCustomButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => SpeechSampleApp()),
-              );
-            },
-            icon: Icons.record_voice_over_rounded,
-            title: 'Live Transcription',
-          ),
-          const SizedBox(height: 20),
-
-          _buildCustomButton(
-            onPressed: () => _showDurationDialog(),
-            icon: Icons.live_tv_rounded,
-            title: 'Transcription with Diarization',
-          ),
-        ],
-      ),
+  Widget _buildFeatureGrid() {
+    return Column(
+      children: [
+        _buildFeatureCard(
+          icon: Icons.record_voice_over_rounded,
+          title: 'Live Transcription',
+          description: 'Real-time speech-to-text with instant feedback',
+          gradientColors: [const Color(0xFF667eea), const Color(0xFF764ba2)],
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const SpeechSampleApp()),
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          icon: Icons.video_library_rounded,
+          title: 'Record & Analyze',
+          description:
+              'Full transcription with speaker identification and AI summary',
+          gradientColors: [const Color(0xFF6B73FF), const Color(0xFF667eea)],
+          onTap: _showDurationDialog,
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          icon: Icons.headset_mic_rounded,
+          title: 'Offline Diarization',
+          description: 'Identify speakers from pre-recorded audio files',
+          gradientColors: [const Color(0xFF764ba2), const Color(0xFF6B73FF)],
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const OfflineDiarizationScreen(),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 
-  Widget _buildCustomButton({
-    required VoidCallback onPressed,
+  Widget _buildFeatureCard({
     required IconData icon,
     required String title,
+    required String description,
+    required List<Color> gradientColors,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      width: double.infinity,
-      height: 80,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF667eea),
-          elevation: 8,
-          shadowColor: Colors.black.withOpacity(0.3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.all(16),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFF667eea).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
-              child: Icon(icon, size: 24, color: const Color(0xFF667eea)),
-            ),
-            const SizedBox(width: 16),
-
-            Expanded(
-              child: Center(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2D3748),
+            ],
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradientColors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gradientColors[0].withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2D3748),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 16,
-              color: Colors.grey[400],
-            ),
-          ],
+              const SizedBox(width: 12),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF667eea).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 18,
+                  color: const Color(0xFF667eea),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+
 
   void _showDurationDialog() {
     showDialog(
